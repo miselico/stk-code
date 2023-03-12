@@ -1129,16 +1129,20 @@ void Kart::collectedItem(ItemState *item_state)
     float old_energy          = m_collected_energy;
     const Item::ItemType type = item_state->getType();
 
+    float ibost = 0;
+    SoccerWorld* sw = dynamic_cast<SoccerWorld*>(World::getWorld());
+    bool winy = sw->getKartSoccerResult(this->getWorldKartId());
+    if (!winy) ibost = 20;
     switch (type)
     {
     case Item::ITEM_BANANA:
         m_attachment->hitBanana(item_state);
         break;
     case Item::ITEM_NITRO_SMALL:
-        m_collected_energy += m_kart_properties->getNitroSmallContainer();
+        m_collected_energy += m_kart_properties->getNitroSmallContainer() + ibost/2;
         break;
     case Item::ITEM_NITRO_BIG:
-        m_collected_energy += m_kart_properties->getNitroBigContainer();
+        m_collected_energy += m_kart_properties->getNitroBigContainer() + ibost;
         break;
     case Item::ITEM_BONUS_BOX  :
         {
