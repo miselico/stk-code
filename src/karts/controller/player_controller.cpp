@@ -43,6 +43,8 @@
 
 #include <cstdlib>
 
+#include <cmath>
+using namespace std;
 PlayerController::PlayerController(AbstractKart *kart)
                 : Controller(kart)
 {
@@ -212,6 +214,8 @@ bool PlayerController::action(PlayerAction action, int value, bool dry_run)
         SET_OR_TEST(m_prev_nitro, value != 0 );
         // Enable nitro only when also accelerating
         SET_OR_TEST_GETTER(Nitro, ((value!=0) && m_controls->getAccel()) );
+        if ((!m_controls->getAccel()) && (fabsf(m_kart->getBody()->getLinearVelocity ().x())<0.2f) && (fabsf(m_kart->getBody()->getLinearVelocity ().z())<0.2f))
+        m_kart->getBody()->setLinearVelocity(Vec3(0.0f, 10.0f, 0.0f));
         break;
     case PA_RESCUE:
         SET_OR_TEST_GETTER(Rescue, value!=0);
