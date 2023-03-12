@@ -170,7 +170,7 @@ public:
     void          loadPowerup     (PowerupType type, const XMLNode &node);
     PowerupManager::PowerupType
         getRandomPowerup(unsigned int pos, unsigned int *n,
-                         uint64_t random_number);
+                         uint64_t random_number, bool win);
     // ------------------------------------------------------------------------
     /** Returns the icon(material) for a powerup. */
     Material* getIcon(int type) const {return m_all_icons [type];}

@@ -600,7 +600,7 @@ void PowerupManager::computeWeightsForRace(int num_karts)
  */
 PowerupManager::PowerupType PowerupManager::getRandomPowerup(unsigned int pos,
                                                              unsigned int *n,
-                                                             uint64_t random_number)
+                                                             uint64_t random_number, bool win)
 {
     int powerup = m_current_item_weights.getRandomItem(pos-1, random_number);
     if(powerup > POWERUP_LAST)
@@ -608,8 +608,11 @@ PowerupManager::PowerupType PowerupManager::getRandomPowerup(unsigned int pos,
         powerup -= (POWERUP_LAST-POWERUP_FIRST+1);
         *n = 3;
     }
-    else
-        *n=1;
+    else{
+        if(!win) *n=3;
+
+        else *n=1;
+    }
 
     // Prevents early explosive items
     if (World::getWorld() && 
@@ -640,7 +643,7 @@ void PowerupManager::unitTesting()
     {
 #ifdef DEBUG
         unsigned int n;
-        assert( powerup_manager->getRandomPowerup(1, &n, i)==POWERUP_BOWLING );
+        assert( powerup_manager->getRandomPowerup(1, &n, i, 1)==POWERUP_BOWLING );
         assert(n==3);
 #endif
     }
@@ -665,7 +668,7 @@ void PowerupManager::unitTesting()
     for (int i = 0; i<num_weights; i++)
     {
         unsigned int n;
-        int powerup = powerup_manager->getRandomPowerup(position, &n, i);
+        int powerup = powerup_manager->getRandomPowerup(position, &n, i, 1);
         if(n==1)
             count[powerup-1]++;
         else
