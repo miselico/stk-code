@@ -643,7 +643,7 @@ void PowerupManager::unitTesting()
     {
 #ifdef DEBUG
         unsigned int n;
-        assert( powerup_manager->getRandomPowerup(1, &n, i, 1)==POWERUP_BOWLING );
+        assert( powerup_manager->getRandomPowerup(1, &n, i)==POWERUP_BOWLING );
         assert(n==3);
 #endif
     }
@@ -668,7 +668,7 @@ void PowerupManager::unitTesting()
     for (int i = 0; i<num_weights; i++)
     {
         unsigned int n;
-        int powerup = powerup_manager->getRandomPowerup(position, &n, i, 1);
+        int powerup = powerup_manager->getRandomPowerup(position, &n, i);
         if(n==1)
             count[powerup-1]++;
         else
