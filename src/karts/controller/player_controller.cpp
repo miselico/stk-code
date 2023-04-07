@@ -40,11 +40,16 @@
 #include "utils/log.hpp"
 #include "utils/string_utils.hpp"
 #include "utils/translation.hpp"
+#include "modes/soccer_world.hpp"
 
 #include <cstdlib>
 
 #include <cmath>
+#include <fstream>
+#include <chrono>  // for std::chrono::seconds
+#include <thread>  // for std::this_thread::sleep_for
 using namespace std;
+
 PlayerController::PlayerController(AbstractKart *kart)
                 : Controller(kart)
 {
@@ -120,6 +125,12 @@ bool PlayerController::action(PlayerAction action, int value, bool dry_run)
      *  assign the new value to the variable (and not return to the user
      *  early). The do-while(0) helps using this macro e.g. in the 'then'
      *  clause of an if statement. */
+
+    SoccerWorld *soccer_world = dynamic_cast<SoccerWorld*>(World::getWorld());
+    fstream file;
+    float value1, value2, value3, value4, distance_threshold_static, distance_threshold_moving, ball_height, jump_limit, kart_y, kart_x, kart_z, ball_x, ball_y, ball_z, kart_vx, kart_vz, karty_threshold;
+
+
 #define SET_OR_TEST(var, value)                \
     do                                         \
     {                                          \
@@ -214,8 +225,175 @@ bool PlayerController::action(PlayerAction action, int value, bool dry_run)
         SET_OR_TEST(m_prev_nitro, value != 0 );
         // Enable nitro only when also accelerating
         SET_OR_TEST_GETTER(Nitro, ((value!=0) && m_controls->getAccel()) );
-        if ((!m_controls->getAccel()) && (fabsf(m_kart->getBody()->getLinearVelocity ().x())<0.2f) && (fabsf(m_kart->getBody()->getLinearVelocity ().z())<0.2f))
-        m_kart->getBody()->setLinearVelocity(Vec3(0.0f, 10.0f, 0.0f));
+
+
+
+        file.open("jumpheight.txt", ios::in); // Open file for reading
+
+        if (!file) // Check if file exists
+        {
+        file.open("jumpheight.txt", ios::out); // Create file if it does not exist
+        file << "15 8\nThe first value represents the jump height when the kart is static, while second value represents the jump height when the kart is moving"; // Write default values to file
+        value1 = 15; // Set default values
+        value2 = 8;
+        }
+
+        else // File exists, read from it
+        file >> value1 >> value2;
+        file.close();
+
+
+        file.open("jumplimit.txt", ios::in); // Open file for reading
+        if (!file) // Check if file exists
+        {
+        file.open("jumplimit.txt", ios::out); // Create file if it does not exist
+        file << "70\nThis value represents the maximum jump height the kart can reach before further jumping is disabled"; // Write default values to file
+        jump_limit = 70; // Set default values
+        }
+        else // File exists, read from it
+        file >> jump_limit;
+        file.close();
+
+
+        kart_vx =  m_kart->getBody()->getLinearVelocity ().x();
+        kart_vz = m_kart->getBody()->getLinearVelocity ().z();
+
+        file.open("dist.txt", ios::in); // Open another file for reading
+        if (!file) // Check if file exists
+        {
+        file.open("dist.txt", ios::out); // Create file if it does not exist
+        file << "30 20 3\nThe first value represents the min distance between the ball and the kart for the ball interception to work when the kart is static, the second value represents the min distance between the ball and the kart for the ball interception to work when the kart is moving, the third value represents max height of the kart for interception to work"; // Write default values to file
+        distance_threshold_static = 30; // Set default values
+        distance_threshold_moving = 20;
+        karty_threshold = 3;
+        }
+        else // File exists, read from it
+        file >> distance_threshold_static >> distance_threshold_moving >> karty_threshold; //2
+        file.close();
+
+        file.open("ballheight.txt", ios::in); // Open another file for reading
+        if (!file) // Check if file exists
+        {
+        file.open("ballheight.txt", ios::out); // Create file if it does not exist
+        file << "2\nThis value represents the min ball height for interception to work"; // Write default values to file
+        ball_height = 2; // Set default values
+        }
+        else // File exists, read from it
+        file >> ball_height; //2
+        file.close();
+
+
+        //get kart position
+        kart_y = m_kart->getXYZ().getY(); //elevation
+        kart_x = m_kart->getXYZ().getX();
+        kart_z = m_kart->getXYZ().getZ();
+
+        //get ball position
+        ball_y = soccer_world->getBallPosition().getY(); //elevation
+        ball_x = soccer_world->getBallPosition().getX();
+        ball_z = soccer_world->getBallPosition().getZ();
+
+        file.open("yoffset.txt", ios::in); // Open another file for reading
+        if (!file) // Check if file exists
+        {
+        file.open("yoffset.txt", ios::out); // Create file if it does not exist
+        file << "-6\nThis value is a fixing for the projectile equations. It is added to the height of the ball at the moment of interception. It is correlated to the value in tim2.txt"; // Write default values to file
+        value3 = -6; // Set default values
+        }
+        else // File exists, read from it
+        file >> value3; //-2
+        file.close();
+
+        file.open("tim2.txt", ios::in); // Open another file for reading
+        if (!file) // Check if file exists
+        {
+        file.open("tim2.txt", ios::out); // Create file if it does not exist
+        file << "1\nThis value represents the time (in seconds) it takes the kart to intercept the ball. It is correlated with the value in yoffset.txt"; // Write default values to file
+        value4 = 1; // Set default values
+        }
+        else // File exists, read from it
+        file >> value4; //0.4
+        file.close();
+
+
+        //press nitro while not accelerating and kart at rest to jump high
+        if ((!m_controls->getAccel()) && (fabsf(kart_vx)<0.2f) && (fabsf(kart_vz)<0.2f))
+        {
+
+            //set the kart's linear velocity to jump
+            if (kart_y < jump_limit )
+            m_kart->getBody()->setLinearVelocity(Vec3(kart_vx, kart_y+value1, kart_vz));
+
+
+        if (!m_kart->isOnGround() &&  (sqrt(pow(kart_x - ball_x, 2) + pow(kart_z - ball_z, 2)) < distance_threshold_static) && (ball_y > ball_height) && ((ball_y - kart_y) < 70))
+        {
+
+
+            //get kart position
+            const Vec3 kartPos = m_kart->getXYZ();
+
+            //get ball position and velocity
+            const Vec3 ballPos = soccer_world->getBallPosition();
+            const Vec3 ballVel = soccer_world->getBallVelocity();
+
+            //Set the time it takes for the kart to reach the ball
+            const float g = -9.8f;
+            const float t = value4; //time for kart to intercept the ball
+
+            //calculate the x and z velocities required for the kart to intercept the ball
+            const float vx = (ballVel.getX()*t + ballPos.getX() - kartPos.getX()) / t;
+            const float vz = (ballVel.getZ()*t + ballPos.getZ() - kartPos.getZ()) / t;
+            const float vy = (ballVel.getY()*t + ballPos.getY() - kartPos.getY()) / t - g*t + value3;
+
+            //set the kart's linear velocity to intercept the ball
+            m_kart->getBody()->setLinearVelocity(Vec3(vx, vy, vz));
+
+
+
+        }
+        }
+
+        else if ((!m_controls->getAccel()) &&  (sqrt(pow(kart_x - ball_x, 2) + pow(kart_z - ball_z, 2)) < distance_threshold_moving) && ((ball_y - kart_y) < 70) && ((ball_y - kart_y) > ball_height) && (kart_y < karty_threshold))
+        {
+
+            //get kart elevation position
+            kart_y = m_kart->getXYZ().getY();
+
+
+
+            //set the kart's linear velocity to jump
+            if (kart_y < jump_limit )
+            m_kart->getBody()->setLinearVelocity(Vec3(kart_vx, kart_y+value2, kart_vz));
+
+
+
+        if (!m_kart->isOnGround()  )
+        {
+
+            //get kart position
+            const Vec3 kartPos = m_kart->getXYZ();
+
+            //get ball position and velocity
+            const Vec3 ballPos = soccer_world->getBallPosition();
+            const Vec3 ballVel = soccer_world->getBallVelocity();
+
+            //Set the time it takes for the kart to reach the ball
+            const float g = -9.8f;
+            const float t = value4; //time for kart to intercept the ball
+
+            //calculate the x and z velocities required for the kart to intercept the ball
+            const float vx = (ballVel.getX()*t + ballPos.getX() - kartPos.getX()) / t;
+            const float vz = (ballVel.getZ()*t + ballPos.getZ() - kartPos.getZ()) / t;
+            const float vy = (ballVel.getY()*t + ballPos.getY() - kartPos.getY()) / t - g*t + value3;
+
+            //set the kart's linear velocity to intercept the ball
+            m_kart->getBody()->setLinearVelocity(Vec3(vx, vy, vz));
+
+
+
+        }
+        }
+
         break;
     case PA_RESCUE:
         SET_OR_TEST_GETTER(Rescue, value!=0);
