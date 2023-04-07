@@ -64,6 +64,10 @@
 #include <iostream>
 #include <iterator>
 
+
+#include <sstream>      // for std::stringstream
+#include <string>       // for std::string
+
 int ServerLobby::m_fixed_laps = -1;
 // ========================================================================
 class SubmitRankingRequest : public Online::XMLRequest
@@ -5705,6 +5709,34 @@ void ServerLobby::handleServerCommand(Event* event,
             peer->setAlwaysSpectate(ASM_NONE);
         updatePlayerList();
     }
+       else if (argv[0] == "help")
+    {
+    NetworkString* chat = getNetworkString();
+    chat->addUInt8(LE_CHAT);
+    chat->setSynchronous(true);
+
+    std::ifstream file("help.txt");
+    std::stringstream buffer;
+
+    if (!file.is_open()) // check if file is not found
+    {
+        std::ofstream new_file("help.txt"); // create new file
+        new_file << "Help content is currently unavialable. Ask the owner to add it."; // write content to file
+        new_file.close(); // close file
+        file.open("help.txt"); // reopen file to read content
+    }
+
+    buffer << file.rdbuf();
+    std::string msg = buffer.str();
+
+    chat->encodeString16(StringUtils::utf8ToWide(msg));
+    peer->sendPacket(chat, true/*reliable*/);
+
+    file.close(); // close the file
+    delete chat;
+    return;
+    }
+
     else if (argv[0] == "listserveraddon")
     {
         NetworkString* chat = getNetworkString();
