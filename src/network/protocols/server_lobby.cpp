@@ -69,6 +69,7 @@
 #include <string>       // for std::string
 
 int ServerLobby::m_fixed_laps = -1;
+unsigned int playerlimit = 10;
 // ========================================================================
 class SubmitRankingRequest : public Online::XMLRequest
 {
@@ -171,12 +172,12 @@ sqlite3_extension_init(sqlite3* db, char** pzErrMsg,
 
 /** This is the central game setup protocol running in the server. It is
  *  mostly a finite state machine. Note that all nodes in ellipses and light
- *  grey background are actual states; nodes in boxes and white background 
+ *  grey background are actual states; nodes in boxes and white background
  *  are functions triggered from a state or triggering potentially a state
  *  change.
  \dot
  digraph interaction {
- node [shape=box]; "Server Constructor"; "playerTrackVote"; "connectionRequested"; 
+ node [shape=box]; "Server Constructor"; "playerTrackVote"; "connectionRequested";
                    "signalRaceStartToClients"; "startedRaceOnClient"; "loadWorld";
  node [shape=ellipse,style=filled,color=lightgrey];
 
@@ -192,7 +193,7 @@ sqlite3_extension_init(sqlite3* db, char** pzErrMsg,
  "playerTrackVote" -> "SELECTING" [label="Not all clients have selected"]
  "playerTrackVote" -> "LOAD_WORLD" [label="All clients have selected; signal load_world to clients"]
  "LOAD_WORLD" -> "loadWorld"
- "loadWorld" -> "WAIT_FOR_WORLD_LOADED" 
+ "loadWorld" -> "WAIT_FOR_WORLD_LOADED"
  "WAIT_FOR_WORLD_LOADED" -> "WAIT_FOR_WORLD_LOADED" [label="Client or server loaded world"]
  "WAIT_FOR_WORLD_LOADED" -> "signalRaceStartToClients" [label="All clients and server ready"]
  "signalRaceStartToClients" -> "WAIT_FOR_RACE_STARTED"
@@ -751,7 +752,7 @@ void ServerLobby::setup()
 
     m_server_has_loaded_world.store(false);
 
-    // Initialise the data structures to detect if all clients and 
+    // Initialise the data structures to detect if all clients and
     // the server are ready:
     resetPeersReady();
     m_timeout.store(std::numeric_limits<int64_t>::max());
@@ -2294,7 +2295,7 @@ void ServerLobby::update(int ticks)
 //-----------------------------------------------------------------------------
 /** Register this server (i.e. its public address) with the STK server
  *  so that clients can find it. It blocks till a response from the
- *  stk server is received (this function is executed from the 
+ *  stk server is received (this function is executed from the
  *  ProtocolManager thread). The information about this client is added
  *  to the table 'server'.
  */
@@ -2523,9 +2524,10 @@ void ServerLobby::startSelection(const Event *event)
     // Disable always spectate peers if no players join the game
     if (!has_peer_plays_game)
     {
-        for (STKPeer* peer : always_spectate_peers)
-            peer->setAlwaysSpectate(ASM_NONE);
-        always_spectate_peers.clear();
+    return;
+       // for (STKPeer* peer : always_spectate_peers)
+       //     peer->setAlwaysSpectate(ASM_NONE);
+     //   always_spectate_peers.clear();
     }
     else
     {
@@ -2874,11 +2876,12 @@ void ServerLobby::checkIncomingConnectionRequests()
  *  to state RESULT_DISPLAY, during which the race result gui is shown and all
  *  clients can click on 'continue'.
  */
-void ServerLobby::checkRaceFinished()
+void ServerLobby::checkRaceFinished(bool endnow)
 {
     assert(RaceEventManager::get()->isRunning());
     assert(World::getWorld());
-    if (!RaceEventManager::get()->isRaceOver()) return;
+    if(!endnow)
+    	if (!RaceEventManager::get()->isRaceOver()) return;
 
     Log::info("ServerLobby", "The game is considered finished.");
     // notify the network world that it is stopped
@@ -2923,7 +2926,7 @@ void ServerLobby::checkRaceFinished()
                 player->setOverallTime(overall_time);
             }
             m_result_ns->addUInt32(last_score).addUInt32(cur_score)
-                .addFloat(overall_time);            
+                .addFloat(overall_time);
         }
     }
     else if (RaceManager::get()->modeHasLaps())
@@ -3002,7 +3005,7 @@ void ServerLobby::computeNewRankings()
 
         prev_disconnects.push_back(m_num_ranked_disconnects.at(id));
     }
- 
+
     // Update some variables
     for (unsigned i = 0; i < player_count; i++)
     {
@@ -3852,7 +3855,7 @@ void ServerLobby::handleUnencryptedConnection(std::shared_ptr<STKPeer> peer,
             core::stringw name = _("Bot");
 #endif
             name += core::stringw(" ") + StringUtils::toWString(i + 1);
-            
+
             m_ai_profiles.push_back(std::make_shared<NetworkPlayerProfile>
                 (peer, name, peer->getHostId(), 0.0f, 0, HANDICAP_NONE,
                 player_count + i, KART_TEAM_NONE, ""));
@@ -4048,7 +4051,7 @@ void ServerLobby::updatePlayerList(bool update_when_reset_server)
             profile_name = StringUtils::utf32ToWide({ 0x1F4F1 }) + profile_name;
 
         // Add an hourglass emoji for players waiting because of the player limit
-        if (spectators_by_limit.find(profile->getPeer()) != spectators_by_limit.end()) 
+        if (spectators_by_limit.find(profile->getPeer()) != spectators_by_limit.end())
             profile_name = StringUtils::utf32ToWide({ 0x231B }) + profile_name;
 
         pl->addUInt32(profile->getHostId()).addUInt32(profile->getOnlineId())
@@ -4300,7 +4303,7 @@ bool ServerLobby::handleAllVotes(PeerVote* winner_vote,
         return false;
     }
 
-    // Count number of players 
+    // Count number of players
     float cur_players = 0.0f;
     auto peers = STKHost::get()->getPeers();
     for (auto peer : peers)
@@ -5573,7 +5576,7 @@ std::set<std::shared_ptr<STKPeer>> ServerLobby::getSpectatorsByLimit()
     unsigned player_limit = ServerConfig::m_max_players_in_game;
     // only 10 players allowed for battle or soccer
     if (RaceManager::get()->isBattleMode() || RaceManager::get()->isSoccerMode())
-        player_limit = std::min(player_limit, 10u);
+        player_limit = std::min(player_limit, playerlimit);
 
     unsigned ingame_players = 0, waiting_players = 0, total_players = 0;
     STKHost::get()->updatePlayers(&ingame_players, &waiting_players, &total_players);
@@ -5709,6 +5712,136 @@ void ServerLobby::handleServerCommand(Event* event,
             peer->setAlwaysSpectate(ASM_NONE);
         updatePlayerList();
     }
+    else if (argv[0] == "endrace")
+{
+    if (argv.size() != 2)
+    {
+        NetworkString* chat = getNetworkString();
+        chat->addUInt8(LE_CHAT);
+        chat->setSynchronous(true);
+        std::string msg = "Usage: /endrace [password]";
+        chat->encodeString16(StringUtils::utf8ToWide(msg));
+        peer->sendPacket(chat, true/*reliable*/);
+        delete chat;
+        return;
+    }
+    else {
+        // Read the admin password from a file
+        std::ifstream infile("admin_password.txt");
+        std::string password;
+        if (infile.good()) {
+            infile >> password;
+        }
+        else {
+            // Generate a random password and save it to the file
+            std::random_device rd;
+            std::mt19937 gen(rd());
+            std::uniform_int_distribution<> distrib(1000, 9999);
+            password = std::to_string(distrib(gen));
+            std::ofstream outfile("admin_password.txt");
+            outfile << password;
+            outfile.close();
+        }
+
+        // Check if the password matches
+        if (password == argv[1]) {
+
+        if (m_state.load() == WAITING_FOR_START_GAME || m_state.load() == WAIT_FOR_WORLD_LOADED || m_state.load() == SELECTING)
+        {
+            NetworkString* chat = getNetworkString();
+            chat->addUInt8(LE_CHAT);
+            chat->setSynchronous(true);
+            std::string msg = "Use during the game, not before starting";
+            chat->encodeString16(StringUtils::utf8ToWide(msg));
+            peer->sendPacket(chat, true/*reliable*/);
+            delete chat;
+            return;
+        }
+
+
+            checkRaceFinished(1);
+            NetworkString* chat = getNetworkString();
+            chat->addUInt8(LE_CHAT);
+            chat->setSynchronous(true);
+            std::string msg = "Game ended by an admin";
+            chat->encodeString16(StringUtils::utf8ToWide(msg));
+            auto peers = STKHost::get()->getPeers();
+            for (auto& p : peers) {
+                p->sendPacket(chat, true /* reliable */);
+            }
+            delete chat;
+        }
+        else {
+            NetworkString* chat = getNetworkString();
+            chat->addUInt8(LE_CHAT);
+            chat->setSynchronous(true);
+            std::string msg = "Incorrect password";
+            chat->encodeString16(StringUtils::utf8ToWide(msg));
+            peer->sendPacket(chat, true/*reliable*/);
+            delete chat;
+            return;
+        }
+    }
+}
+       else if (argv[0] == "setlimit")
+{
+    if (argv.size() != 3)
+    {
+        NetworkString* chat = getNetworkString();
+        chat->addUInt8(LE_CHAT);
+        chat->setSynchronous(true);
+        std::string msg = "Usage: /setlimit [max nb of players] [password]";
+        chat->encodeString16(StringUtils::utf8ToWide(msg));
+        peer->sendPacket(chat, true/*reliable*/);
+        delete chat;
+        return;
+    }
+    else {
+        // Read the admin password from a file
+        std::ifstream infile("admin_password.txt");
+        std::string password;
+        if (infile.good()) {
+            infile >> password;
+        }
+        else {
+            // Generate a random password and save it to the file
+            std::random_device rd;
+            std::mt19937 gen(rd());
+            std::uniform_int_distribution<> distrib(1000, 9999);
+            password = std::to_string(distrib(gen));
+            std::ofstream outfile("admin_password.txt");
+            outfile << password;
+            outfile.close();
+        }
+
+        // Check if the password matches
+        if (password == argv[2]) {
+            playerlimit = std::stoi(argv[1]);
+            updatePlayerList();
+            NetworkString* chat = getNetworkString();
+            chat->addUInt8(LE_CHAT);
+            chat->setSynchronous(true);
+            std::string msg = "Playable slots updated to " + std::to_string(playerlimit);
+            chat->encodeString16(StringUtils::utf8ToWide(msg));
+            auto peers = STKHost::get()->getPeers();
+            for (auto& p : peers) {
+                p->sendPacket(chat, true /* reliable */);
+            }
+            delete chat;
+        }
+        else {
+            NetworkString* chat = getNetworkString();
+            chat->addUInt8(LE_CHAT);
+            chat->setSynchronous(true);
+            std::string msg = "Incorrect password";
+            chat->encodeString16(StringUtils::utf8ToWide(msg));
+            peer->sendPacket(chat, true/*reliable*/);
+            delete chat;
+            return;
+        }
+    }
+}
+
        else if (argv[0] == "help")
     {
     NetworkString* chat = getNetworkString();
