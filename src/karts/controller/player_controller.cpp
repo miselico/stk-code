@@ -128,7 +128,7 @@ bool PlayerController::action(PlayerAction action, int value, bool dry_run)
 
     SoccerWorld *soccer_world = dynamic_cast<SoccerWorld*>(World::getWorld());
     fstream file;
-    float value1, value2, value3, value4, distance_threshold_static, distance_threshold_moving, ball_height, jump_limit, kart_y, kart_x, kart_z, ball_x, ball_y, ball_z, kart_vx, kart_vz, karty_threshold;
+    float value1, value2, value3_sta, value3_mov, value4_sta, value4_mov, distance_threshold_static, distance_threshold_moving, ball_height, jump_limit, kart_y, kart_x, kart_z, ball_x, ball_y, ball_z, kart_vx, kart_vz, karty_threshold;
 
 
 #define SET_OR_TEST(var, value)                \
@@ -297,27 +297,29 @@ bool PlayerController::action(PlayerAction action, int value, bool dry_run)
         if (!file) // Check if file exists
         {
         file.open("yoffset.txt", ios::out); // Create file if it does not exist
-        file << "-6\nThis value is a fixing for the projectile equations. It is added to the height of the ball at the moment of interception. It is correlated to the value in tim2.txt"; // Write default values to file
-        value3 = -6; // Set default values
+        file << "-4 -6\nThe 1st for stationary and the 2nd for moving kart. These values are a fixing for the projectile equations. It is added to the height of the ball at the moment of interception. It is correlated to the value in tim2.txt"; // Write default values to file
+        value3_sta = -4; // Set default values
+        value3_mov = -6;
         }
         else // File exists, read from it
-        file >> value3; //-2
+        file >> value3_sta >> value3_mov; //-2
         file.close();
 
         file.open("tim2.txt", ios::in); // Open another file for reading
         if (!file) // Check if file exists
         {
         file.open("tim2.txt", ios::out); // Create file if it does not exist
-        file << "1\nThis value represents the time (in seconds) it takes the kart to intercept the ball. It is correlated with the value in yoffset.txt"; // Write default values to file
-        value4 = 1; // Set default values
+        file << "0.7 1\nThe 1st for sta and the 2nd for moving. These values represent the time (in seconds) it takes the kart to intercept the ball. It is correlated with the value in yoffset.txt"; // Write default values to file
+        value4_sta = 0.7; // Set default values
+        value4_mov = 1;
         }
         else // File exists, read from it
-        file >> value4; //0.4
+        file >> value4_sta >> value4_mov; //0.4
         file.close();
 
 
         //press nitro while not accelerating and kart at rest to jump high
-        if ((!m_controls->getAccel()) && (fabsf(kart_vx)<0.2f) && (fabsf(kart_vz)<0.2f))
+        if ((!m_controls->getAccel()) && (fabsf(kart_vx)<0.2f) && (fabsf(kart_vz)<0.2f) &&  (sqrt(pow(kart_x - ball_x, 2) + pow(kart_z - ball_z, 2)) < distance_threshold_static) && (ball_y > ball_height) && ((ball_y - kart_y) < 70))
         {
 
             //set the kart's linear velocity to jump
@@ -325,7 +327,7 @@ bool PlayerController::action(PlayerAction action, int value, bool dry_run)
             m_kart->getBody()->setLinearVelocity(Vec3(kart_vx, kart_y+value1, kart_vz));
 
 
-        if (!m_kart->isOnGround() &&  (sqrt(pow(kart_x - ball_x, 2) + pow(kart_z - ball_z, 2)) < distance_threshold_static) && (ball_y > ball_height) && ((ball_y - kart_y) < 70))
+        if (!m_kart->isOnGround() )
         {
 
 
@@ -338,12 +340,12 @@ bool PlayerController::action(PlayerAction action, int value, bool dry_run)
 
             //Set the time it takes for the kart to reach the ball
             const float g = -9.8f;
-            const float t = value4; //time for kart to intercept the ball
+            const float t = value4_sta; //time for kart to intercept the ball
 
             //calculate the x and z velocities required for the kart to intercept the ball
             const float vx = (ballVel.getX()*t + ballPos.getX() - kartPos.getX()) / t;
             const float vz = (ballVel.getZ()*t + ballPos.getZ() - kartPos.getZ()) / t;
-            const float vy = (ballVel.getY()*t + ballPos.getY() - kartPos.getY()) / t - g*t + value3;
+            const float vy = (ballVel.getY()*t + ballPos.getY() - kartPos.getY()) / t - g*t + value3_sta;
 
             //set the kart's linear velocity to intercept the ball
             m_kart->getBody()->setLinearVelocity(Vec3(vx, vy, vz));
@@ -379,12 +381,12 @@ bool PlayerController::action(PlayerAction action, int value, bool dry_run)
 
             //Set the time it takes for the kart to reach the ball
             const float g = -9.8f;
-            const float t = value4; //time for kart to intercept the ball
+            const float t = value4_mov; //time for kart to intercept the ball
 
             //calculate the x and z velocities required for the kart to intercept the ball
             const float vx = (ballVel.getX()*t + ballPos.getX() - kartPos.getX()) / t;
             const float vz = (ballVel.getZ()*t + ballPos.getZ() - kartPos.getZ()) / t;
-            const float vy = (ballVel.getY()*t + ballPos.getY() - kartPos.getY()) / t - g*t + value3;
+            const float vy = (ballVel.getY()*t + ballPos.getY() - kartPos.getY()) / t - g*t + value3_mov;
 
             //set the kart's linear velocity to intercept the ball
             m_kart->getBody()->setLinearVelocity(Vec3(vx, vy, vz));
