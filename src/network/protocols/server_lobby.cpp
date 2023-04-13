@@ -67,6 +67,80 @@
 
 #include <sstream>      // for std::stringstream
 #include <string>       // for std::string
+#include <vector>
+#include <ctime>
+#include <cstdlib>
+
+  // List of joining messages
+const std::vector<std::string> JOINED_MESSAGES = {
+    "Welcome to the party!",
+    "Glad you could make it!",
+    "Time to show off your skills!",
+    "The more the merrier!",
+    "Let's get this party started!",
+    "Buckle up, it's gonna be a wild ride!",
+    "Welcome aboard!",
+    "You're just in time!",
+    "The party don't start till you walk in!",
+    "Glad you're here!",
+    "We've been waiting for you!",
+    "It's about to go down!",
+    "Good to see you!",
+    "Get ready to rock and roll!",
+    "Hope you brought your A-game!",
+    "Just what we needed!",
+    "We were starting to get lonely!",
+    "Joining the fray!",
+    "Let's get this show on the road!",
+    "We're gonna have a blast!"
+};
+
+const std::vector<std::string> LEFT_MESSAGES = {
+    "Later gator!",
+    "Peace out!",
+    "See you soon, you big baboon!",
+    "So long, King Kong!",
+    "See you later, alligator!",
+    "Time to fly, goodbye!",
+    "It's been real, deal!",
+    "Take it easy, greasy!",
+    "Later, skater!",
+    "Adios, amigos!",
+    "After a while, crocodile!",
+    "See ya soon, raccoon!",
+    "Gotta be flyin, dandelion!",
+    "Time to go, buffalo!",
+    "Take care, teddy bear!",
+    "Cant stay, blue jay!",
+    "That's the tale, nightingale!",
+    "Too-da-loo, kangaroo!",
+    "Out the door, dinosaur!",
+    "Hasta luna, tuna!",
+    "Say goodbye, pumpkin pie!",
+    "Time to escape, big ape!",
+    "Hang loose, mongoose!",
+    "Bye-bye, butterfly!",
+    "Here's a hug, ladybug!",
+    "Okey dokey, artichokey!",
+    "See ya on the flip flop, curly top!",
+    "In an hour, sunflower!",
+    "Time to bail, slimy snail!",
+    "Must be off, little moth!",
+    "Gotta kick it, little cricket!",
+    "Time to sail, orca whale!",
+    "Gotta scoot, lil' newt!",
+    "Bye for now, brown cow!",
+    "Gotta run, honey bun!"
+
+};
+// Function to generate a random message
+std::string generateRandomMessage(const std::vector<std::string> Messages) {
+    std::srand(std::time(0));
+    int randIndex = std::rand() % Messages.size();
+    return Messages[randIndex];
+}
+std::string lastJoinedName;
+std::string lastLeftName;
 
 int ServerLobby::m_fixed_laps = -1;
 unsigned int playerlimit = 10;
@@ -706,7 +780,8 @@ void ServerLobby::updateTracksForMode()
             assert(false);
             break;
     }
-
+    lastJoinedName = "";
+    lastLeftName = "";
 }   // updateTracksForMode
 
 //-----------------------------------------------------------------------------
@@ -3366,6 +3441,27 @@ void ServerLobby::clientDisconnected(Event* event)
     updatePlayerList();
     delete msg;
 
+NetworkString* chat = getNetworkString();
+            chat->addUInt8(LE_CHAT);
+            chat->setSynchronous(true);
+            for (auto p : players_on_peer)
+    {
+            std::string peerName = StringUtils::wideToUtf8(p->getName());
+
+            if (peerName != lastLeftName) {
+            std::string msg = "" + peerName + " disconnected! "+generateRandomMessage(LEFT_MESSAGES);
+            chat->encodeString16(StringUtils::utf8ToWide(msg));
+
+            // Update lastLeftName
+            lastLeftName = peerName;
+    }
+    }
+            auto peers = STKHost::get()->getPeers();
+            for (auto& p : peers) {
+                p->sendPacket(chat, true /* reliable */);
+            }
+            delete chat;
+
     writeDisconnectInfoTable(event->getPeer());
 }   // clientDisconnected
 
@@ -3692,6 +3788,15 @@ void ServerLobby::connectionRequested(Event* event)
         handleUnencryptedConnection(peer, data, online_id, online_name,
             false/*is_pending_connection*/);
     }
+    auto peers = STKHost::get()->getPeers();
+    int validated_peer_count = 0;
+
+for (auto peer : peers) {
+    if (peer->isValidated()) {
+        validated_peer_count++;
+    }
+}
+
 }   // connectionRequested
 
 //-----------------------------------------------------------------------------
@@ -4577,6 +4682,25 @@ bool ServerLobby::decryptConnectionRequest(std::shared_ptr<STKPeer> peer,
             StringUtils::wideToUtf8(online_name).c_str());
         handleUnencryptedConnection(peer, data, online_id,
             online_name, true/*is_pending_connection*/, country_code);
+
+            std::string peerName = StringUtils::wideToUtf8(online_name);
+            if (peerName != lastJoinedName) {
+                NetworkString* chat = getNetworkString();
+                chat->addUInt8(LE_CHAT);
+                chat->setSynchronous(true);
+                std::string msg = "" + peerName + " is here! "+generateRandomMessage(JOINED_MESSAGES);
+                chat->encodeString16(StringUtils::utf8ToWide(msg));
+                auto peers = STKHost::get()->getPeers();
+                for (auto& p : peers) {
+                    if (!p->isValidated()) continue;
+                    p->sendPacket(chat, true /* reliable */);
+                }
+                delete chat;
+
+                // Update lastJoinedName
+                lastJoinedName = peerName;
+            }
+
         return true;
     }
     return false;
@@ -5746,7 +5870,7 @@ void ServerLobby::handleServerCommand(Event* event,
         // Check if the password matches
         if (password == argv[1]) {
 
-        if (m_state.load() == WAITING_FOR_START_GAME || m_state.load() == WAIT_FOR_WORLD_LOADED || m_state.load() == SELECTING)
+        if (m_state.load() != RACING)
         {
             NetworkString* chat = getNetworkString();
             chat->addUInt8(LE_CHAT);
