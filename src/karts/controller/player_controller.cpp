@@ -262,9 +262,9 @@ bool PlayerController::action(PlayerAction action, int value, bool dry_run)
         if (!file) // Check if file exists
         {
         file.open("dist.txt", ios::out); // Create file if it does not exist
-        file << "30 20 3\nThe first value represents the min distance between the ball and the kart for the ball interception to work when the kart is static, the second value represents the min distance between the ball and the kart for the ball interception to work when the kart is moving, the third value represents max height of the kart for interception to work"; // Write default values to file
-        distance_threshold_static = 30; // Set default values
-        distance_threshold_moving = 20;
+        file << "25 18 3\nThe first value represents the min distance between the ball and the kart for the ball interception to work when the kart is static, the second value represents the min distance between the ball and the kart for the ball interception to work when the kart is moving, the third value represents max height of the kart for interception to work"; // Write default values to file
+        distance_threshold_static = 25; // Set default values
+        distance_threshold_moving = 18;
         karty_threshold = 3;
         }
         else // File exists, read from it
@@ -297,8 +297,8 @@ bool PlayerController::action(PlayerAction action, int value, bool dry_run)
         if (!file) // Check if file exists
         {
         file.open("yoffset.txt", ios::out); // Create file if it does not exist
-        file << "-4 -6\nThe 1st for stationary and the 2nd for moving kart. These values are a fixing for the projectile equations. It is added to the height of the ball at the moment of interception. It is correlated to the value in tim2.txt"; // Write default values to file
-        value3_sta = -4; // Set default values
+        file << "-6 -6\nThe 1st for stationary and the 2nd for moving kart. These values are a fixing for the projectile equations. It is added to the height of the ball at the moment of interception. It is correlated to the value in tim2.txt"; // Write default values to file
+        value3_sta = -6; // Set default values
         value3_mov = -6;
         }
         else // File exists, read from it
@@ -309,8 +309,8 @@ bool PlayerController::action(PlayerAction action, int value, bool dry_run)
         if (!file) // Check if file exists
         {
         file.open("tim2.txt", ios::out); // Create file if it does not exist
-        file << "0.7 1\nThe 1st for sta and the 2nd for moving. These values represent the time (in seconds) it takes the kart to intercept the ball. It is correlated with the value in yoffset.txt"; // Write default values to file
-        value4_sta = 0.7; // Set default values
+        file << "1 1\nThe 1st for sta and the 2nd for moving. These values represent the time (in seconds) it takes the kart to intercept the ball. It is correlated with the value in yoffset.txt"; // Write default values to file
+        value4_sta = 1; // Set default values
         value4_mov = 1;
         }
         else // File exists, read from it
