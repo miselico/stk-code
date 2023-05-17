@@ -18,6 +18,7 @@
 
 #include "items/powerup.hpp"
 
+
 #include "modes/soccer_world.hpp"
 #include "audio/sfx_base.hpp"
 #include "audio/sfx_manager.hpp"
@@ -516,9 +517,11 @@ void Powerup::hitBonusBox(const ItemState &item_state)
     // positions), but this case is properly handled in getRandomPowerup.
     int position = m_kart->getPosition();
 
-    unsigned kart_id = m_kart->getWorldKartId();
-    SoccerWorld *soccer_world = dynamic_cast<SoccerWorld*>(World::getWorld());
-    bool is_winning_team = soccer_world->getKartSoccerResult(kart_id);
+    unsigned kart_id = m_kart->getWorldKartId(); // I added !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
+    SoccerWorld *soccer_world = dynamic_cast<SoccerWorld*>(World::getWorld()); // I added !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    bool is_winning_team = soccer_world->getKartSoccerResult(kart_id); // I added !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
+
+
     unsigned int n=1;
     PowerupManager::PowerupType new_powerup;
     World *world = World::getWorld();
@@ -579,7 +582,8 @@ void Powerup::hitBonusBox(const ItemState &item_state)
     random_number ^= (random_number >> 8);
 
     new_powerup = powerup_manager->getRandomPowerup(position, &n, 
-                                                    random_number, is_winning_team);
+                                                    random_number, is_winning_team); // I added !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 
     // Always add a new powerup in ITEM_MODE_NEW (or if the kart
     // doesn't have a powerup atm).

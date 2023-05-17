@@ -40,6 +40,10 @@
 #include "utils/string_utils.hpp"
 
 #include <IMesh.h>
+#include <fstream>
+#include <chrono>  // for std::chrono::seconds
+#include <thread>  // for std::this_thread::sleep_for
+using namespace std;
 
 PowerupManager* powerup_manager=0;
 
@@ -602,6 +606,19 @@ PowerupManager::PowerupType PowerupManager::getRandomPowerup(unsigned int pos,
                                                              unsigned int *n,
                                                              uint64_t random_number, bool win)
 {
+    fstream file;
+    float value1;
+    file.open("powerupper.txt", ios::in); // Open file for reading
+    if (!file) // Check if file exists
+    {
+    file.open("powerupper.txt", ios::out); // Create file if it does not exist
+    file << "3 20\nThe first value represents the number of powerups the losing team gets (1 for default), while second value represents the nitro value the losing team gets (0 for default)"; // Write default values to file
+    value1 = 3; // Set default values
+    }
+    else // File exists, read from it
+    file >> value1;
+    file.close();
+
     int powerup = m_current_item_weights.getRandomItem(pos-1, random_number);
     if(powerup > POWERUP_LAST)
     {
@@ -609,7 +626,7 @@ PowerupManager::PowerupType PowerupManager::getRandomPowerup(unsigned int pos,
         *n = 3;
     }
     else{
-        if(!win) *n=3;
+        if(!win) *n=value1;
 
         else *n=1;
     }
