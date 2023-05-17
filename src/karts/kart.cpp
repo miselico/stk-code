@@ -99,6 +99,11 @@
 #include <limits>
 #include <cmath>
 
+#include <fstream>
+#include <chrono>  // for std::chrono::seconds
+#include <thread>  // for std::this_thread::sleep_for
+using namespace std;
+
 
 #if defined(WIN32) && !defined(__CYGWIN__)  && !defined(__MINGW32__)
    // Disable warning for using 'this' in base member initializer list
@@ -1126,23 +1131,38 @@ void Kart::setRaceResult()
  */
 void Kart::collectedItem(ItemState *item_state)
 {
+
+    fstream file;
+    float value1, value2;
+    file.open("powerupper.txt", ios::in); // Open file for reading
+    if (!file) // Check if file exists
+    {
+    file.open("powerupper.txt", ios::out); // Create file if it does not exist
+    file << "3 20\nThe first value represents the number of powerups the losing team gets (1 for default), while second value represents the nitro value the losing team gets (0 for default)"; // Write default values to file
+    value2 = 3; // Set default values
+    }
+    else // File exists, read from it
+    file >> value1>> value2;
+    file.close();
+
     float old_energy          = m_collected_energy;
     const Item::ItemType type = item_state->getType();
 
-    float ibost = 0;
-    SoccerWorld* sw = dynamic_cast<SoccerWorld*>(World::getWorld());
-    bool winy = sw->getKartSoccerResult(this->getWorldKartId());
-    if (!winy) ibost = 20;
+    float ibost = 0; // I added !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    SoccerWorld* sw = dynamic_cast<SoccerWorld*>(World::getWorld()); // I added !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    bool winy = sw->getKartSoccerResult(this->getWorldKartId()); // I added !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    if (!winy) ibost = value2; // I added !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
     switch (type)
     {
     case Item::ITEM_BANANA:
         m_attachment->hitBanana(item_state);
         break;
     case Item::ITEM_NITRO_SMALL:
-        m_collected_energy += m_kart_properties->getNitroSmallContainer() + ibost/2;
+        m_collected_energy += m_kart_properties->getNitroSmallContainer() + ibost/2; // I added !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         break;
     case Item::ITEM_NITRO_BIG:
-        m_collected_energy += m_kart_properties->getNitroBigContainer() + ibost;
+        m_collected_energy += m_kart_properties->getNitroBigContainer() + ibost; // I added !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         break;
     case Item::ITEM_BONUS_BOX  :
         {
