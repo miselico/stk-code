@@ -49,7 +49,7 @@ PowerupManager* powerup_manager=0;
 
 //-----------------------------------------------------------------------------
 /** The constructor initialises everything to zero. */
-PowerupManager::PowerupManager()
+PowerupManager::PowerupManager() : powerup_multiplier(3)
 {
     m_random_seed.store(0);
     for(int i=0; i<POWERUP_MAX; i++)
@@ -57,7 +57,22 @@ PowerupManager::PowerupManager()
         m_all_meshes[i] = NULL;
         m_all_icons[i]  = (Material*)NULL;
     }
-}   // PowerupManager
+
+    fstream file;
+    file.open("powerupper.txt", ios::in); // Open file for reading
+
+    if (file.good()) // Check if file exists
+    {
+        file >> powerup_multiplier;
+    }
+    else
+    {                                                                                                                                                                                               // File exists, read from it
+        file.open("powerupper.txt", ios::out);                                                                                                                                                      // Create file if it does not exist
+        file << "3 20\nThe first value represents the number of powerups the losing team gets (1 for default), while second value represents the nitro value the losing team gets (0 for default)"; // Write default values to file
+    }
+    file.close();
+
+} // PowerupManager
 
 //-----------------------------------------------------------------------------
 /** Destructor, frees all meshes. */
