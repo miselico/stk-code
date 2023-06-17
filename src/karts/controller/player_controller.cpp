@@ -116,8 +116,8 @@ void PlayerController::reset()
 
     read_values("jumpheight.txt", {&jump_value1, &jump_value2}, "The first value represents the jump height when the kart is static, while second value represents the jump height when the kart is moving");
     read_values("jumplimit.txt", {&jump_limit}, "This value represents the maximum jump height the kart can reach before further jumping is disabled");
-    read_values("dist.txt", {&jump_distance_threshold_static, &jump_distance_threshold_moving,  &jump_distance_max_fastjumping,  &jump_karty_threshold}, 
-        "The first value represents the min distance between the ball and the kart for the ball interception to work when the kart is static, the second value represents the min distance between the ball and the kart for the ball interception to work when the kart is moving, the third value is the distance_max_fastjumping.The last value represents max height of the kart for interception to work"); 
+    read_values("dist.txt", {&jump_distance_threshold_static, &jump_distance_threshold_moving,  &jump_distance_max_fastjumping,  &jump_karty_threshold},
+        "The first value represents the min distance between the ball and the kart for the ball interception to work when the kart is static, the second value represents the min distance between the ball and the kart for the ball interception to work when the kart is moving, the third value is the distance_max_fastjumping.The last value represents max height of the kart for interception to work");
     read_values("ball.txt",{&jump_ball_height_min, &jump_ball_height_max, &jump_ball_vel_min},"This value represents the min and max ball height for interception to work. The last is the ball_vel_min for fast jumping to work.");
     read_values("yoffset.txt", {&jump_value3_sta, &jump_value3_mov}, "The 1st for stationary and the 2nd for moving kart. These values are a fixing for the projectile equations. It is added to the height of the ball at the moment of interception. It is correlated to the value in tim2.txt");
     read_values("tim2.txt", {&jump_value4_sta, &jump_value4_mov}, "The 1st for sta and the 2nd for moving. These values represent the time (in seconds) it takes the kart to intercept the ball. It is correlated with the value in yoffset.txt");
@@ -175,7 +175,8 @@ bool PlayerController::action(PlayerAction action, int value, bool dry_run)
 
     SoccerWorld *soccer_world = dynamic_cast<SoccerWorld*>(World::getWorld());
 
-    float kart_y, kart_x, kart_z, ball_x, ball_y, ball_z, kart_vx, kart_vz;
+    float  kart_y, kart_x, kart_z,  ball_x, ball_y, ball_z, kart_vx, kart_vz;
+    Vec3 kartPos,ballPos;
 
 #define SET_OR_TEST(var, value)                \
     do                                         \
@@ -272,18 +273,20 @@ bool PlayerController::action(PlayerAction action, int value, bool dry_run)
         // Enable nitro only when also accelerating
         SET_OR_TEST_GETTER(Nitro, ((value!=0) && m_controls->getAccel()) );
 
-        kart_vx =  m_kart->getBody()->getLinearVelocity ().x();
-        kart_vz = m_kart->getBody()->getLinearVelocity ().z();
+        kart_vx =  m_kart->getBody()->getLinearVelocity().x();
+        kart_vz = m_kart->getBody()->getLinearVelocity().z();
 
         //get kart position
-        kart_y = m_kart->getXYZ().getY(); //elevation
-        kart_x = m_kart->getXYZ().getX();
-        kart_z = m_kart->getXYZ().getZ();
+        kartPos = m_kart->getXYZ();
+        kart_y = kartPos.getY(); //elevation
+        kart_x = kartPos.getX();
+        kart_z = kartPos.getZ();
 
         //get ball position
-        ball_y = soccer_world->getBallPosition().getY(); //elevation
-        ball_x = soccer_world->getBallPosition().getX();
-        ball_z = soccer_world->getBallPosition().getZ();
+        ballPos = soccer_world->getBallPosition();
+        ball_y = ballPos.getY(); //elevation
+        ball_x = ballPos.getX();
+        ball_z = ballPos.getZ();
 
         //press nitro while not accelerating and kart at rest to jump high
    //     if ((!m_controls->getAccel()) && (fabsf(kart_vx)<0.2f) && (fabsf(kart_vz)<0.2f) &&  (sqrt(pow(kart_x - ball_x, 2) + pow(kart_z - ball_z, 2)) < distance_threshold_static) && (ball_y > ball_height_min) && ((ball_y - kart_y) < 70))
@@ -310,9 +313,9 @@ bool PlayerController::action(PlayerAction action, int value, bool dry_run)
      //       const float t = value4_sta; //time for kart to intercept the ball
 
             //calculate the x and z velocities required for the kart to intercept the ball
-    //        const float vx = (ballVel.getX()*t + ballPos.getX() - kartPos.getX()) / t;
-    //        const float vz = (ballVel.getZ()*t + ballPos.getZ() - kartPos.getZ()) / t;
-     //       const float vy = (ballVel.getY()*t + ballPos.getY() - kartPos.getY()) / t - g*t + value3_sta;
+    //        const float vx = (ballVel.getX()*t + ball_x - kart_x) / t;
+    //        const float vz = (ballVel.getZ()*t + ball_z - kart_z) / t;
+     //       const float vy = (ballVel.getY()*t + ball_y - kart_y) / t - g*t + value3_sta;
 
             //set the kart's linear velocity to intercept the ball
    //         m_kart->getBody()->setLinearVelocity(Vec3(vx, vy, vz));
@@ -338,24 +341,16 @@ bool PlayerController::action(PlayerAction action, int value, bool dry_run)
 
         if (!m_kart->isOnGround()  )
         {
-
-
-
-
-            //get kart position
-            const Vec3 kartPos = m_kart->getXYZ();
-
-            //get ball position and velocity
-            const Vec3 ballPos = soccer_world->getBallPosition();
+            //get ball velocity
             const Vec3 ballVel = soccer_world->getBallVelocity();
 
             //Set the time it takes for the kart to reach the ball
             const float g = -9.8f;
 
-            Vec3 ballToKart = kartPos - soccer_world->getBallPosition();
+            Vec3 ballToKart = kartPos - ballPos;
             float dotProduct = ballToKart.getX() * ballVel.getX() + ballToKart.getZ() * ballVel.getZ();
             bool ballVelocityTowardsKartPosition = (dotProduct > 0); //true if dotProduct > 0
-            float kartBallDistance = sqrt(pow(ballPos.getX() - kartPos.getX(), 2) + pow(ballPos.getY() - kartPos.getY(), 2)+  pow(ballPos.getZ() - kartPos.getZ(), 2));
+            float kartBallDistance = sqrt(pow(ball_x - kart_x, 2) + pow(ball_y - kart_y, 2)+  pow(ball_z - kart_z, 2));
             float t;
             float yoffset;
             if ((ballVelocityTowardsKartPosition) && (ballVel.length() > jump_ball_vel_min))
@@ -374,9 +369,9 @@ bool PlayerController::action(PlayerAction action, int value, bool dry_run)
             yoffset = jump_value3_mov;
             }
             //calculate the x, y and z velocities required for the kart to intercept the ball
-            const float vx = (ballVel.getX()*t + ballPos.getX() - kartPos.getX()) / t;
-            const float vz = (ballVel.getZ()*t + ballPos.getZ() - kartPos.getZ()) / t;
-            const float vy = (ballVel.getY()*t + ballPos.getY() - kartPos.getY()) / t - g*t + yoffset;
+            const float vx = (ballVel.getX()*t + ball_x - kart_x) / t;
+            const float vz = (ballVel.getZ()*t + ball_z - kart_z) / t;
+            const float vy = (ballVel.getY()*t + ball_y - kart_y) / t - g*t + yoffset;
 
             //set the kart's linear velocity to intercept the ball
             m_kart->getBody()->setLinearVelocity(Vec3(vx, vy, vz));
@@ -596,5 +591,4 @@ void PlayerController::displayPenaltyWarning()
 {
     m_penalty_ticks = stk_config->m_penalty_ticks;
 }   // displayPenaltyWarning
-
 
